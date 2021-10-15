@@ -1,3 +1,16 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
 import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import { withLocalize } from 'react-localize-redux';
@@ -13,7 +26,6 @@ import growResourcesIcon from '../../assets/images/getting_started_growresources
 import monitorIcon from '../../assets/images/getting_started_monitor.svg';
 import joinIcon from '../../assets/images/joinIcon.svg';
 import { updateState } from '../../redux/commonActions';
-import ActionsHelper from '../../utils/actionsHelper';
 import Helper from '../../utils/helper';
 import { setInStorage } from '../../utils/localStorage';
 import SVGs from '../Svgs/Svgs';
@@ -67,17 +79,6 @@ class WelcomeBannerContent extends Component {
 		setInStorage('showDiagram', true);
 		this.welcomeBanner.closeWelcome();
 		this.props.onClose();
-		if (page === 'templatePage') {
-			this.props.updateState('templateWrapper', {
-				showDiagram: true,
-				showTemplatePage: true,
-			});
-		} else {
-			this.props.updateState('templateWrapper', {
-				showDiagram: true,
-				showTemplatePage: false,
-			});
-		}
 	};
 
 	render() {
@@ -111,15 +112,6 @@ class WelcomeBannerContent extends Component {
 									mainTileIcon={developSCIcon}
 									tileClick={event => this.openDocLink(event, 'developSm', translate)}
 								/>
-								{this.props.feature_flags && this.props.feature_flags.templates_enabled && ActionsHelper.canCreateComponent(this.props.userInfo) && (
-									<WelcomeBannerTile
-										description={translate('deploy_desc')}
-										header={translate('deploy_a_template')}
-										internalLink
-										mainTileIcon={buildIcon}
-										tileClick={() => this.showDiagram('templatePage')}
-									/>
-								)}
 								<WelcomeBannerTile
 									description={translate('build_network_desc')}
 									header={translate('build_network')}
@@ -217,7 +209,6 @@ const dataProps = {
 	isClosing: PropTypes.bool,
 	isClosed: PropTypes.bool,
 	isOpening: PropTypes.bool,
-	showTemplatePage: PropTypes.bool,
 };
 
 WelcomeBannerContent.propTypes = {
@@ -233,7 +224,6 @@ export default connect(
 		newProps['platform'] = state['settings'] ? state['settings']['platform'] : null;
 		newProps['bmixUrl'] = state['settings'] ? state['settings']['bmixUrl'] : null;
 		newProps['showDiagram'] = state['main'] ? state['main']['showDiagram'] : null;
-		newProps['showTemplatePage'] = state['main'] ? state['main']['showTemplatePage'] : null;
 		newProps['feature_flags'] = state['settings'] ? state['settings']['feature_flags'] : null;
 		newProps['userInfo'] = state['userInfo'] ? state['userInfo'] : null;
 		return newProps;

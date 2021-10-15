@@ -27,10 +27,13 @@ import NodeStatus from '../../utils/status';
 import emptyOrdererImage from '../../assets/images/empty_nodes.svg';
 import ItemTileLabels from '../ItemContainerTile/ItemTileLabels/ItemTileLabels';
 import { triggers, triggerSurvey } from '../../utils/medallia';
+import * as constants from '../../utils/constants';
 
 const SCOPE = 'orderers';
 const Log = new Logger(SCOPE);
 const naturalSort = require('javascript-natural-sort');
+let secondaryOsStatusCheck = null;
+let tooLongTimer = null;
 
 class Orderers extends Component {
 	componentDidMount() {
@@ -39,14 +42,12 @@ class Orderers extends Component {
 			isMspDetailsView: this.props.filteredOrderers && this.props.filteredOrderers.length > 0,
 		});
 		this.getOrderers();
-	}
 
-	componentDidUpdate(prevProps) {
-		if (prevProps !== this.props && this.props.feature_flags && this.props.feature_flags.templates_enabled) {
-			if (prevProps.templateComplete !== this.props.templateComplete) {
-				this.getOrderers();
-			}
-		}
+		// after x hours stop the secondary status checker
+		clearTimeout(tooLongTimer);
+		tooLongTimer = setTimeout(() => {
+			clearInterval(secondaryOsStatusCheck);
+		}, constants.SECONDARY_STATUS_TIMEOUT);
 	}
 
 	componentWillUnmount() {
@@ -81,6 +82,13 @@ class Orderers extends Component {
 		this.props.updateState(SCOPE, { loading: true });
 		OrdererRestApi.getOrderers()
 			.then(ordererList => {
+				// loop slowly on peer status forever to keep status icon up to date...
+				clearInterval(secondaryOsStatusCheck);
+				secondaryOsStatusCheck = setInterval(() => {
+					NodeStatus.getStatus(ordererList, SCOPE, 'ordererList', null, 1);
+					this.props.updateState(SCOPE, { ordererList }); // ?
+				}, constants.SECONDARY_STATUS_PERIOD); // very slow
+
 				ordererList.forEach(orderer => {
 					orderer.certificateWarning = this.getCertificateWarning(orderer);
 				});
@@ -325,7 +333,6 @@ export default connect(
 		let newProps = Helper.mapStateToProps(state[SCOPE], dataProps);
 		newProps['feature_flags'] = state['settings'] ? state['settings']['feature_flags'] : null;
 		newProps['userInfo'] = state['userInfo'] ? state['userInfo'] : null;
-		newProps['templateComplete'] = state['templateWrapper'] ? state['templateWrapper']['templateComplete'] : null;
 		return newProps;
 	},
 	{

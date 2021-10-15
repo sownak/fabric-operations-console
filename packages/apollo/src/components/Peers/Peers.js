@@ -28,10 +28,13 @@ import NodeStatus from '../../utils/status';
 import emptyPeerImage from '../../assets/images/empty_nodes.svg';
 import ItemTileLabels from '../ItemContainerTile/ItemTileLabels/ItemTileLabels';
 import { triggers, triggerSurvey } from '../../utils/medallia';
+import * as constants from '../../utils/constants';
 
 const SCOPE = 'peers';
 const Log = new Logger(SCOPE);
 const naturalSort = require('javascript-natural-sort');
+let secondaryPeerStatusCheck = null;
+let tooLongTimer = null;
 
 class Peers extends Component {
 	componentDidMount() {
@@ -40,14 +43,12 @@ class Peers extends Component {
 			isMspDetailsView: this.props.filteredPeers && this.props.filteredPeers.length > 0,
 		});
 		this.getPeers();
-	}
 
-	componentDidUpdate(prevProps) {
-		if (prevProps !== this.props && this.props.feature_flags && this.props.feature_flags.templates_enabled) {
-			if (prevProps.templateComplete !== this.props.templateComplete) {
-				this.getPeers();
-			}
-		}
+		// after x hours stop the secondary status checker
+		clearTimeout(tooLongTimer);
+		tooLongTimer = setTimeout(() => {
+			clearInterval(secondaryPeerStatusCheck);
+		}, constants.SECONDARY_STATUS_TIMEOUT);
 	}
 
 	componentWillUnmount() {
@@ -64,6 +65,12 @@ class Peers extends Component {
 		this.props.updateState(SCOPE, { loading: true });
 		PeerRestApi.getPeers()
 			.then(peerList => {
+				// loop slowly on peer status forever to keep status icon up to date...
+				clearInterval(secondaryPeerStatusCheck);
+				secondaryPeerStatusCheck = setInterval(() => {
+					NodeStatus.getStatus(peerList, SCOPE, 'peerList', null, 1);
+				}, constants.SECONDARY_STATUS_PERIOD); // very slow
+
 				peerList.forEach(peer => {
 					const tls_root_certs = _.get(peer, 'msp.tlsca.root_certs') || [];
 					const admin_certs = _.get(peer, 'node_ou.enabled') ? [] : _.get(peer, 'msp.component.admin_certs') || [];
@@ -354,7 +361,6 @@ export default connect(
 	state => {
 		let newProps = Helper.mapStateToProps(state[SCOPE], dataProps);
 		newProps['userInfo'] = state['userInfo'] ? state['userInfo'] : null;
-		newProps['templateComplete'] = state['templateWrapper'] ? state['templateWrapper']['templateComplete'] : null;
 		newProps['feature_flags'] = state['settings'] ? state['settings']['feature_flags'] : null;
 		return newProps;
 	},
